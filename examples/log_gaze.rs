@@ -3,7 +3,9 @@ use tobii_sys::*;
 use std::ptr;
 use std::mem;
 use std::os::raw;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
+use std::thread;
+use std::time;
 
 use tobii_sys::helpers::{PtrWrapper, status_to_result, TobiiError};
 
@@ -23,10 +25,25 @@ fn list_devices(api: *mut Api) -> Result<Vec<String>, TobiiError> {
     }
 }
 
+unsafe fn reconnect(device: *mut Device) -> Status {
+    for i in 0..40 {
+        let status = tobii_reconnect(device);
+        if status != TOBII_ERROR_CONNECTION_FAILED { return status; }
+        thread::sleep(time::Duration::from_millis(250));
+    }
+    return TOBII_ERROR_CONNECTION_FAILED;
+}
+
 unsafe extern "C"
 fn custom_log_fn(_log_context: *mut ::std::os::raw::c_void, level: LogLevel, text: *const raw::c_char) {
     let s = CStr::from_ptr(text);
     println!("LOG {}: {}", level, s.to_str().unwrap());
+}
+
+unsafe extern "C"
+fn gaze_callback(gaze_point: *const GazePoint, user_data: *mut ::std::os::raw::c_void) {
+    let pt = &*gaze_point;
+    println!("GAZE {}: {}, {}", pt.timestamp_us, pt.position_xy[0], pt.position_xy[1]);
 }
 
 fn run_demo() -> Result<(), TobiiError> {
@@ -50,6 +67,36 @@ fn run_demo() -> Result<(), TobiiError> {
             return Ok(());
         }
 
+        let url_c_string = CString::new(devices[0].clone()).unwrap();
+        let url_c = url_c_string.as_c_str();
+        let mut device_ptr: *mut Device = mem::zeroed();
+        let status = tobii_device_create(api.ptr(), url_c.as_ptr(), &mut device_ptr as *mut *mut Device);
+        status_to_result(status)?;
+        let device = PtrWrapper::new(device_ptr, tobii_device_destroy);
+
+        let status = tobii_gaze_point_subscribe(device.ptr(), Some(gaze_callback), ptr::null_mut());
+        let subscription = PtrWrapper::new(device.ptr(), tobii_gaze_point_unsubscribe);
+        status_to_result(status)?;
+        for _i in 1..1000 {
+            let status = tobii_wait_for_callbacks(device.ptr());
+            match status_to_result(status) {
+                Err(TobiiError::TimedOut) => continue,
+                Err(TobiiError::ConnectionFailed) => {
+                    status_to_result(reconnect(device.ptr()))?;
+                    continue;
+                },
+                Err(e) => return Err(e),
+                Ok(()) => (),
+            }
+
+            let status = tobii_process_callbacks(device.ptr());
+            if status == TOBII_ERROR_CONNECTION_FAILED {
+                status_to_result(reconnect(device.ptr()))?;
+                continue;
+            }
+            // TODO handle reconnect
+            status_to_result(status)?;
+        }
     }
     Ok(())
 }
