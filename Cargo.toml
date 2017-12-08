@@ -1,0 +1,12 @@
+[package]
+name = "tobii-sys"
+version = "0.1.0"
+authors = ["Tristan Hume <tristan@thume.ca>"]
+license = "MIT"
+build = "build.rs"
+repository = "https://github.com/trishume/tobii-sys"
+documentation = "https://docs.rs/tobii-sys"
+description = """
+Bindings to the Tobii Stream Engine library for eye tracking.
+"""
+categories = ["external-ffi-bindings"]
