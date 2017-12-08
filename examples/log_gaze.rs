@@ -4,35 +4,8 @@ use std::ptr;
 use std::mem;
 use std::os::raw;
 use std::ffi::{CStr, CString};
-use std::thread;
-use std::time;
 
-use tobii_sys::helpers::{PtrWrapper, status_to_result, TobiiError};
-
-fn list_devices(api: *mut Api) -> Result<Vec<String>, TobiiError> {
-    unsafe extern "C" fn callback(url: *const raw::c_char, user_data: *mut raw::c_void) {
-        let list = &mut *(user_data as *mut Vec<String>);
-        let s = CStr::from_ptr(url);
-        list.push(s.to_str().unwrap().to_string());
-    }
-
-    unsafe {
-        let mut list: Vec<String> = Vec::new();
-        let list_ptr = &mut list as *mut Vec<String>;
-        let status = tobii_enumerate_local_device_urls(api, Some(callback), list_ptr as *mut raw::c_void);
-        status_to_result(status)?;
-        Ok(list)
-    }
-}
-
-unsafe fn reconnect(device: *mut Device) -> Status {
-    for i in 0..40 {
-        let status = tobii_reconnect(device);
-        if status != TOBII_ERROR_CONNECTION_FAILED { return status; }
-        thread::sleep(time::Duration::from_millis(250));
-    }
-    return TOBII_ERROR_CONNECTION_FAILED;
-}
+use tobii_sys::helpers::{self, PtrWrapper, status_to_result, TobiiError};
 
 unsafe extern "C"
 fn custom_log_fn(_log_context: *mut ::std::os::raw::c_void, level: LogLevel, text: *const raw::c_char) {
@@ -59,7 +32,7 @@ fn run_demo() -> Result<(), TobiiError> {
         status_to_result(status)?;
         let api = PtrWrapper::new(api_ptr, tobii_api_destroy);
 
-        let devices = list_devices(api.ptr())?;
+        let devices = helpers::list_devices(api.ptr())?;
         println!("{:?}", devices);
 
         if devices.len() < 1 {
@@ -82,7 +55,7 @@ fn run_demo() -> Result<(), TobiiError> {
             match status_to_result(status) {
                 Err(TobiiError::TimedOut) => continue,
                 Err(TobiiError::ConnectionFailed) => {
-                    status_to_result(reconnect(device.ptr()))?;
+                    status_to_result(helpers::reconnect(device.ptr()))?;
                     continue;
                 },
                 Err(e) => return Err(e),
@@ -91,10 +64,9 @@ fn run_demo() -> Result<(), TobiiError> {
 
             let status = tobii_process_callbacks(device.ptr());
             if status == TOBII_ERROR_CONNECTION_FAILED {
-                status_to_result(reconnect(device.ptr()))?;
+                status_to_result(helpers::reconnect(device.ptr()))?;
                 continue;
             }
-            // TODO handle reconnect
             status_to_result(status)?;
         }
     }

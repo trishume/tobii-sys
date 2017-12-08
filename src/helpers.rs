@@ -1,4 +1,8 @@
 use super::*;
+use std::os::raw;
+use std::thread;
+use std::time;
+use std::ffi::CStr;
 
 pub struct PtrWrapper<T> {
     ptr: *mut T,
@@ -59,4 +63,29 @@ pub fn status_to_result(status: Status) -> Result<(),TobiiError> {
         TOBII_ERROR_OPERATION_FAILED => Err(TobiiError::OperationFailed),
         _ => Err(TobiiError::Unknown(status))
     }
+}
+
+pub unsafe fn list_devices(api: *mut Api) -> Result<Vec<String>, TobiiError> {
+    unsafe extern "C" fn callback(url: *const raw::c_char, user_data: *mut raw::c_void) {
+        let list = &mut *(user_data as *mut Vec<String>);
+        let s = CStr::from_ptr(url);
+        list.push(s.to_str().unwrap().to_string());
+    }
+
+    unsafe {
+        let mut list: Vec<String> = Vec::new();
+        let list_ptr = &mut list as *mut Vec<String>;
+        let status = tobii_enumerate_local_device_urls(api, Some(callback), list_ptr as *mut raw::c_void);
+        status_to_result(status)?;
+        Ok(list)
+    }
+}
+
+pub unsafe fn reconnect(device: *mut Device) -> Status {
+    for i in 0..40 {
+        let status = tobii_reconnect(device);
+        if status != TOBII_ERROR_CONNECTION_FAILED { return status; }
+        thread::sleep(time::Duration::from_millis(250));
+    }
+    return TOBII_ERROR_CONNECTION_FAILED;
 }
