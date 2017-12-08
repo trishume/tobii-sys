@@ -72,17 +72,15 @@ pub unsafe fn list_devices(api: *mut Api) -> Result<Vec<String>, TobiiError> {
         list.push(s.to_str().unwrap().to_string());
     }
 
-    unsafe {
-        let mut list: Vec<String> = Vec::new();
-        let list_ptr = &mut list as *mut Vec<String>;
-        let status = tobii_enumerate_local_device_urls(api, Some(callback), list_ptr as *mut raw::c_void);
-        status_to_result(status)?;
-        Ok(list)
-    }
+    let mut list: Vec<String> = Vec::new();
+    let list_ptr = &mut list as *mut Vec<String>;
+    let status = tobii_enumerate_local_device_urls(api, Some(callback), list_ptr as *mut raw::c_void);
+    status_to_result(status)?;
+    Ok(list)
 }
 
 pub unsafe fn reconnect(device: *mut Device) -> Status {
-    for i in 0..40 {
+    for _i in 0..40 {
         let status = tobii_reconnect(device);
         if status != TOBII_ERROR_CONNECTION_FAILED { return status; }
         thread::sleep(time::Duration::from_millis(250));

@@ -9,12 +9,13 @@ use tobii_sys::helpers::{self, PtrWrapper, status_to_result, TobiiError};
 
 unsafe extern "C"
 fn custom_log_fn(_log_context: *mut ::std::os::raw::c_void, level: LogLevel, text: *const raw::c_char) {
+    if level > TOBII_LOG_LEVEL_WARN { return; }
     let s = CStr::from_ptr(text);
     println!("LOG {}: {}", level, s.to_str().unwrap());
 }
 
 unsafe extern "C"
-fn gaze_callback(gaze_point: *const GazePoint, user_data: *mut ::std::os::raw::c_void) {
+fn gaze_callback(gaze_point: *const GazePoint, _user_data: *mut ::std::os::raw::c_void) {
     let pt = &*gaze_point;
     println!("GAZE {}: {}, {}", pt.timestamp_us, pt.position_xy[0], pt.position_xy[1]);
 }
@@ -48,7 +49,7 @@ fn run_demo() -> Result<(), TobiiError> {
         let device = PtrWrapper::new(device_ptr, tobii_device_destroy);
 
         let status = tobii_gaze_point_subscribe(device.ptr(), Some(gaze_callback), ptr::null_mut());
-        let subscription = PtrWrapper::new(device.ptr(), tobii_gaze_point_unsubscribe);
+        let _subscription = PtrWrapper::new(device.ptr(), tobii_gaze_point_unsubscribe);
         status_to_result(status)?;
         for _i in 1..1000 {
             let status = tobii_wait_for_callbacks(device.ptr());
