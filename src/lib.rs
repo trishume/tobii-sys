@@ -22,6 +22,9 @@ pub const TOBII_ERROR_CALIBRATION_NOT_STARTED: Status = 10;
 pub const TOBII_ERROR_ALREADY_SUBSCRIBED: Status = 11;
 pub const TOBII_ERROR_NOT_SUBSCRIBED: Status = 12;
 pub const TOBII_ERROR_OPERATION_FAILED: Status = 13;
+pub const TOBII_ERROR_CONFLICTING_API_INSTANCES: Status = 14;
+pub const TOBII_ERROR_CALIBRATION_BUSY: Status = 15;
+pub const TOBII_ERROR_CALLBACK_IN_PROGRESS: Status = 16;
 
 /// tobii_error_t
 pub type Status = ::std::os::raw::c_uint;
@@ -275,10 +278,14 @@ extern "C" {
                                device: *mut *mut Device)
                                -> Status;
     pub fn tobii_device_destroy(device: *mut Device) -> Status;
-    pub fn tobii_wait_for_callbacks(device: *mut Device) -> Status;
-    pub fn tobii_process_callbacks(device: *mut Device) -> Status;
+    // TODO add support for engine type
+    pub fn tobii_wait_for_callbacks(engine: *mut ::std::os::raw::c_void,
+                                    device_count: ::std::os::raw::c_int,
+                                    devices: *const *mut Device)
+                                    -> Status;
+    pub fn tobii_device_process_callbacks(device: *mut Device) -> Status;
     pub fn tobii_clear_callback_buffers(device: *mut Device) -> Status;
-    pub fn tobii_reconnect(device: *mut Device) -> Status;
+    pub fn tobii_device_reconnect(device: *mut Device) -> Status;
     pub fn tobii_update_timesync(device: *mut Device) -> Status;
     pub fn tobii_get_device_info(device: *mut Device,
                                  device_info: *mut DeviceInfo)
@@ -312,6 +319,10 @@ extern "C" {
                                        user_data: *mut ::std::os::raw::c_void)
                                        -> Status;
     pub fn tobii_gaze_origin_unsubscribe(device: *mut Device) -> Status;
+    pub fn tobii_eye_position_normalized_subscribe(device: *mut Device,
+                                       callback: EyePositionNormalizedFn,
+                                       user_data: *mut ::std::os::raw::c_void)
+                                       -> Status;
     pub fn tobii_eye_position_normalized_unsubscribe(device: *mut Device) -> Status;
     pub fn tobii_user_presence_subscribe(device: *mut Device,
                                          callback: UserPresenceFn,

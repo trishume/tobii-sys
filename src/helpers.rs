@@ -3,6 +3,7 @@ use std::os::raw;
 use std::thread;
 use std::time;
 use std::ffi::CStr;
+use std::ptr;
 
 pub struct PtrWrapper<T> {
     ptr: *mut T,
@@ -42,6 +43,9 @@ pub enum TobiiError {
     AlreadySubscribed,
     NotSubscribed,
     OperationFailed,
+    ConflictingApiInstances,
+    CalibrationBusy,
+    CallbackInProgress,
     Unknown(Status),
 }
 
@@ -61,6 +65,9 @@ pub fn status_to_result(status: Status) -> Result<(),TobiiError> {
         TOBII_ERROR_ALREADY_SUBSCRIBED => Err(TobiiError::AlreadySubscribed),
         TOBII_ERROR_NOT_SUBSCRIBED => Err(TobiiError::NotSubscribed),
         TOBII_ERROR_OPERATION_FAILED => Err(TobiiError::OperationFailed),
+        TOBII_ERROR_CONFLICTING_API_INSTANCES => Err(TobiiError::ConflictingApiInstances),
+        TOBII_ERROR_CALIBRATION_BUSY => Err(TobiiError::CalibrationBusy),
+        TOBII_ERROR_CALLBACK_IN_PROGRESS => Err(TobiiError::CallbackInProgress),
         _ => Err(TobiiError::Unknown(status))
     }
 }
@@ -81,9 +88,14 @@ pub unsafe fn list_devices(api: *mut Api) -> Result<Vec<String>, TobiiError> {
 
 pub unsafe fn reconnect(device: *mut Device) -> Status {
     for _i in 0..40 {
-        let status = tobii_reconnect(device);
+        let status = tobii_device_reconnect(device);
         if status != TOBII_ERROR_CONNECTION_FAILED { return status; }
         thread::sleep(time::Duration::from_millis(250));
     }
     return TOBII_ERROR_CONNECTION_FAILED;
+}
+
+pub unsafe fn wait_for_device_callbacks(device: *mut Device) -> Status {
+    let ptr_ptr_dev: *const *mut Device = (&device) as *const *mut Device;
+    tobii_wait_for_callbacks(ptr::null_mut(), 1, ptr_ptr_dev)
 }
