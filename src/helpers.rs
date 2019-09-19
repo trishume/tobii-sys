@@ -97,5 +97,5 @@ pub unsafe fn reconnect(device: *mut Device) -> Status {
 
 pub unsafe fn wait_for_device_callbacks(device: *mut Device) -> Status {
     let ptr_ptr_dev: *const *mut Device = (&device) as *const *mut Device;
-    tobii_wait_for_callbacks(ptr::null_mut(), 1, ptr_ptr_dev)
+    tobii_wait_for_callbacks(1, ptr_ptr_dev)
 }
