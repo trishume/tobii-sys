@@ -254,7 +254,9 @@ pub type EyePositionNormalizedFn = :: std :: option :: Option < unsafe extern "C
 
 
 
-#[link(name = "StreamEngineClientKit", kind = "framework")]
+// TODO: The following line is needed for linking on macOS, but breaks building on
+// Linux. How to make it conditional?
+//#[link(name = "StreamEngineClientKit", kind = "framework")]
 extern "C" {
     pub fn tobii_error_message(error: Status) -> *const ::std::os::raw::c_char;
     pub fn tobii_get_api_version(version: *mut Version) -> Status;
