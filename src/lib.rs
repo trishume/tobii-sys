@@ -254,7 +254,9 @@ pub type EyePositionNormalizedFn = :: std :: option :: Option < unsafe extern "C
 
 
 
-#[link(name = "StreamEngineClientKit", kind = "framework")]
+// TODO: The following line is needed for linking on macOS, but breaks building on
+// Linux. How to make it conditional?
+//#[link(name = "StreamEngineClientKit", kind = "framework")]
 extern "C" {
     pub fn tobii_error_message(error: Status) -> *const ::std::os::raw::c_char;
     pub fn tobii_get_api_version(version: *mut Version) -> Status;
@@ -278,9 +280,7 @@ extern "C" {
                                device: *mut *mut Device)
                                -> Status;
     pub fn tobii_device_destroy(device: *mut Device) -> Status;
-    // TODO add support for engine type
-    pub fn tobii_wait_for_callbacks(engine: *mut ::std::os::raw::c_void,
-                                    device_count: ::std::os::raw::c_int,
+    pub fn tobii_wait_for_callbacks(device_count: ::std::os::raw::c_int,
                                     devices: *const *mut Device)
                                     -> Status;
     pub fn tobii_device_process_callbacks(device: *mut Device) -> Status;
